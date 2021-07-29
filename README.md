@@ -2,16 +2,13 @@
 
 # KoBertSum
 
+## 앞서
+이 코드는 https://github.com/uoneway/KoBertSum.git 의 fork임을 미리 알립니다.
+
 ## Update
-[21.04.03.]
-- 다양한 데이터를 받아들일 수 있도록 `Data Preparation` 방식을 전면 수정하였습니다.
-- hydra를 적용하여 많은 arguments들을 쉽게 관리 및 수정할 수 있도록 하였습니다.
-
+[21.07.29.]
+- training 수행하는 동안 validation 수행할 수 있도록 코드 수정
   
-추후 업데이트 계획은 다음과 같습니다.
-
-- [ ] `BertSumAbs` 및 `BertSumExtAbs` 요약모델 추가 지원
-- [ ] Pre-trained BERT로 [KoBERT ](https://github.com/SKTBrain/KoBERT)외 타 모델 지원(Huggingface transformers 라이브러리 지원 모델 위주)
 
 ## 모델 소개
 
