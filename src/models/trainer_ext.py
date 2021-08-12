@@ -9,6 +9,7 @@ import distributed
 from models.reporter_ext import ReportMgr, Statistics
 from others.logging import logger
 from others.utils import test_rouge, rouge_results_to_str
+from copy import deepcopy
 
 
 def _tally_parameters(model):
@@ -141,7 +142,7 @@ class Trainer(object):
 
         total_stats = Statistics() # total train stats
         report_stats = Statistics() # train stats for each steps
-        val_stats = Statistics() # total validation stats
+        valid_stats = Statistics() # total validation stats
         self._start_report_manager(start_time=total_stats.start_time)
 
         while (stop_training_cnt < self.stop_training) or (step <= train_steps):
@@ -151,7 +152,6 @@ class Trainer(object):
             reduce_counter = 0
             for i, batch in enumerate(train_iter):
                 if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
-
                     true_batchs.append(batch)
                     normalization += batch.batch_size
                     accum += 1
@@ -179,35 +179,17 @@ class Trainer(object):
                         # ):
                         #     self._save(step)
 
+                        # Validation
+                        if train_steps % step == valid_steps:
+                            val_loss = self.validate(val_iter, valid_stats, step)
+                            self.model.train()
+                            self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)
+
                         step += 1
-                        if step > train_steps:
-                            break
 
-                    if (valid_steps > 0) and (step % valid_steps == 0): # do validation
-                        self.model.eval()
-                        with torch.no_grad():
-                            total_loss = 0
-                            for batch in val_iter:
-                                src = batch.src
-                                labels = batch.src_sent_labels
-                                segs = batch.segs
-                                clss = batch.clss
-                                mask = batch.mask_src
-                                mask_cls = batch.mask_cls
+        return total_stats, valid_stats
 
-                                sent_scores, mask = self.model(src, segs, clss, mask, mask_cls)
-                                loss = self.loss(sent_scores, labels.float())
-                                loss = (loss * mask.float()).sum()
-                                total_loss += loss.item()
-                                batch_stats = Statistics(float(loss.cpu().data.numpy()), len(labels))
-                                val_stats.update(batch_stats)
-
-                            self._entry_topk(best_topk_models, total_loss, step, k, stop_training_cnt)
-                            self._report_step(0, step, valid_stats=val_stats)
-
-        return total_stats, val_stats
-
-    def validate(self, valid_iter, step=0):
+    def validate(self, valid_iter, valid_stats, step=0):
         """Validate model.
             valid_iter: validate data iterator
         Returns:
@@ -215,7 +197,7 @@ class Trainer(object):
         """
         # Set model in validating mode.
         self.model.eval()
-        stats = Statistics()
+        total_loss = []
 
         with torch.no_grad():
             for batch in valid_iter:
@@ -227,15 +209,13 @@ class Trainer(object):
                 mask_cls = batch.mask_cls
 
                 sent_scores, mask = self.model(src, segs, clss, mask, mask_cls)
-                # print(labels)
-                # print(sent_scores)
-                # print(mask)
                 loss = self.loss(sent_scores, labels.float())
                 loss = (loss * mask.float()).sum()
+                total_loss.append(loss)
                 batch_stats = Statistics(float(loss.cpu().data.numpy()), len(labels))
-                stats.update(batch_stats)
-            self._report_step(0, step, valid_stats=stats)
-            return stats
+                valid_stats.update(batch_stats)
+            self._report_step(0, step, valid_stats=valid_stats)
+            return sum(total_loss) / len(total_loss) # returns validation loss
 
     def test(self, test_iter, step, cal_lead=False, cal_oracle=False):
         """Validate model.
@@ -465,6 +445,7 @@ class Trainer(object):
             torch.save(checkpoint, checkpoint_path)
             return checkpoint, checkpoint_path
 
+
     def _entry_topk(self, topk_models, val_loss, step, k, stop_training_cnt):
         """
         validation 결과에 따라 k개 만큼의 모델 데이터를 저장하는 함수
@@ -475,7 +456,7 @@ class Trainer(object):
         val_loss: 현재 step에서의 validation loss
         step: 현재 step
         k: topk_model에 저장될 entry의 수
-
+        stop_training_cnt: 
         """
         # assert topk_models is list
         del_step = None
