@@ -183,7 +183,9 @@ class Trainer(object):
                         if train_steps % step == valid_steps:
                             val_loss = self.validate(val_iter, valid_stats, step)
                             self.model.train()
-                            self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)
+                            if val_loss is not None:
+                                print(val_loss)
+                                self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)
 
                         step += 1
 
@@ -215,7 +217,12 @@ class Trainer(object):
                 batch_stats = Statistics(float(loss.cpu().data.numpy()), len(labels))
                 valid_stats.update(batch_stats)
             self._report_step(0, step, valid_stats=valid_stats)
-            return sum(total_loss) / len(total_loss) # returns validation loss
+            try:
+                return sum(total_loss) / len(total_loss) # returns validation loss
+
+            except ZeroDivisionError:
+                return None
+
 
     def test(self, test_iter, step, cal_lead=False, cal_oracle=False):
         """Validate model.
