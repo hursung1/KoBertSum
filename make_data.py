@@ -1,12 +1,13 @@
 import os
 import sys
 import json
+import random
 from numpy import save
 import pandas as pd
 from tqdm import tqdm
-from omegaconf import DictConfig
-import hydra
-# import argparse
+# from omegaconf import DictConfig
+# import hydra
+import argparse
 import glob
 from src.others.logging import logger
 
@@ -14,13 +15,14 @@ from src.prepro.preprocessor_kr import korean_sent_spliter, preprocess_kr
 
 os.environ['MKL_THREADING_LAYER']='GNU'
 
-def jsonl_to_df(cfg):
-    from_dir, to_dir = os.getcwd(), cfg.dirs.df
+def jsonl_to_df(params):
+    from_dir = f"{os.getcwd()}/datasets/{params.dataset_name}"
+    to_dir = f"{from_dir}/df"
     src_name, tgt_name, train_split, train_split_frac = (
-        cfg.src_name,
-        cfg.tgt_name,
-        cfg.train_split, 
-        cfg.train_split_frac,
+        params.src_name,
+        params.tgt_name,
+        params.train_split, 
+        params.train_split_frac,
     )
 
     # import data
@@ -33,6 +35,7 @@ def jsonl_to_df(cfg):
 
     for jsonl_file_path in jsonl_file_paths:
         logger.info(f"Start 'jsonl_to_df' processing for {jsonl_file_path}...")
+        # if "train" in jsonl_file_path:
         _jsonl_to_df(
             jsonl_file_path,
             to_dir,
@@ -53,8 +56,8 @@ def _jsonl_to_df(
         df.to_pickle(df_path)
         logger.info(f"Done! {df_path}({len(df)} rows) is exported")
 
+    print(jsonl_file_path)
     subdata_group = _get_subdata_group(jsonl_file_path)
-
     with open(jsonl_file_path, "r") as json_file:
         json_list = list(json_file)
 
@@ -63,6 +66,7 @@ def _jsonl_to_df(
         line = json.loads(json_str)
         jsons.append(line)
 
+    random.shuffle(jsons)
     # Convert jsonl to df
     df = pd.DataFrame(jsons)
 
@@ -99,16 +103,18 @@ def _jsonl_to_df(
         save_df(test_df, to_dir)
 
 
-def df_to_bert(cfg):
-    from_dir, temp_dir, to_dir = cfg.dirs.df, cfg.dirs.json, cfg.dirs.bert
-    log_file = cfg.dirs.log_file
+def df_to_bert(params):
+    from_dir = f"{os.getcwd()}/datasets/{params.dataset_name}/df"
+    temp_dir = f"{os.getcwd()}/datasets/{params.dataset_name}/json"
+    to_dir = f"{os.getcwd()}/datasets/{params.dataset_name}/bert"
+    log_file = f"{os.getcwd()}/datasets/{params.dataset_name}/data_prepro.log"
     src_name, tgt_name, tgt_type, train_split_frac = (
-        cfg.src_name,
-        cfg.tgt_name,
-        cfg.tgt_type,
-        cfg.train_split_frac,
+        params.src_name,
+        params.tgt_name,
+        params.tgt_type,
+        params.train_split_frac,
     )
-    n_cpus = cfg.n_cpus
+    n_cpus = params.n_cpus
 
     df_file_paths = _get_file_paths(from_dir, "pickle")
     if not df_file_paths:
@@ -130,7 +136,7 @@ def df_to_bert(cfg):
         base_path = os.getcwd()
         _make_or_initial_dir(os.path.join(base_path, to_dir, subdata_group))
         os.system(
-            f"python {os.path.join(hydra.utils.get_original_cwd(), 'src', 'preprocess.py')}"
+            f"python {os.path.join(base_path, 'src', 'preprocess.py')}"
             + f" -mode format_to_bert -dataset {subdata_group}"
             + f" -tgt_type {tgt_type}"
             + f" -raw_path {os.path.join(base_path, temp_dir)}"
@@ -244,24 +250,40 @@ def _get_subdata_group(path):
             return type
 
 
-@ hydra.main(config_path='conf/make_data', config_name='config')
-def main(cfg: DictConfig) -> None:
+# @ hydra.main(config_path='conf/make_data', config_name='config')
+def main() -> None:
+    parser = argparse.ArgumentParser(description="몰루")
+    ### options as input
+    parser.add_argument("--dataset_name", type=str, default="aihub", help="name of dataset")
+    parser.add_argument("--train_file", type=str, default="train.jsonl", help="name of train dataset file")
+    parser.add_argument("--valid_file", type=str, default="valid.jsonl", help="name of validation dataset file")
+    parser.add_argument("--test_file", type=str, default="test.jsonl", help="name of test dataset file")
+    parser.add_argument("--mode", type=str, default="jsonl_to_bert", help="mode of data deformation")
+    parser.add_argument("--train_split", type=lambda s: s.lower() in ['true', '1'], default=False, help="split train set for validation data or not, true/false")
+    parser.add_argument("--train_split_frac", type=float, default=1.0, help="proportion of train and validation set split")
+    parser.add_argument("--n_cpus", type=int, default=1, help="# of cpus")
+    
+    ### 건들 필요 없는 부분
+    parser.add_argument("--src_name", type=str, default="article_original", )
+    parser.add_argument("--tgt_name", type=str, default="extractive", )
+    parser.add_argument("--tgt_type", type=str, default="idx_list", )
+    params = parser.parse_args()
+
     modes = ["jsonl_to_df", "jsonl_to_bert", "df_to_bert"]
 
-    if cfg.mode not in modes:
+    if params.mode not in modes:
         logger.error(f"Incorrect mode. Please choose one of {modes}")
         sys.exit("Stop")
 
-    # print(OmegaConf.to_yaml(cfg))
     print(os.getcwd())
 
     # Convert raw data to df
-    if cfg.mode in ["jsonl_to_df", "jsonl_to_bert"]:
-        jsonl_to_df(cfg)
+    if params.mode in ["jsonl_to_df", "jsonl_to_bert"]:
+        jsonl_to_df(params)
 
     # Make bert input file for train and valid from df file
-    if cfg.mode in ["df_to_bert", "jsonl_to_bert"]:
-        df_to_bert(cfg)
+    if params.mode in ["df_to_bert", "jsonl_to_bert"]:
+        df_to_bert(params)
 
 
 if __name__ == "__main__":
