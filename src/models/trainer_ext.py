@@ -99,7 +99,7 @@ class Trainer(object):
     ):
         # Basic attributes.
         self.args = args
-        self.save_checkpoint_steps = args.save_checkpoint_steps
+        self.valid_steps = args.valid_steps
         self.model = model
         self.optim = optim
         self.grad_accum_count = grad_accum_count
@@ -173,19 +173,15 @@ class Trainer(object):
                         true_batchs = []
                         accum = 0
                         normalization = 0
-                        # if (
-                        #     step % self.save_checkpoint_steps == 0
-                        #     and self.gpu_rank == 0
-                        # ):
-                        #     self._save(step)
-
-                        # Validation
-                        if train_steps % step == valid_steps:
+                        if (
+                            step % self.valid_steps == 0
+                            and self.gpu_rank == 0
+                        ): # validation for each {$self.save_checkpoint_steps}
                             val_loss = self.validate(val_iter, valid_stats, step)
                             self.model.train()
                             if val_loss is not None:
-                                print(val_loss)
-                                self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)
+                                # print(val_loss)
+                                self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)   
 
                         step += 1
 

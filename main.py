@@ -83,9 +83,9 @@ if __name__ == "__main__":
         param2 = " -ext_dropout 0.1 -lr 2e-3 -batch_size 1000 -train_steps 5000 -accum_count 2 -use_interval true -warmup_steps 3000 -max_pos 512"
         param3 = " -ext_dropout 0.1 -max_pos 512 -lr 2e-3 -warmup_steps 10000 -batch_size 3000 -accum_count 2 -train_steps 50000  -use_interval true"
         param4 = (
-            " -ext_dropout 0.1 -max_pos 512 -batch_size 2000 -accum_count 2"
+            " -ext_dropout 0.1 -max_pos 512 -batch_size 6000 -accum_count 2"
             + " -lr 2e-3 -warmup_steps 1200 "  # 전체가 21632개인데  평균 9.6문장이니 207667문장/ 5000 = 41.5
-            + "  -train_steps 20000 -save_checkpoint_steps 1000  -report_every 100"
+            + "  -train_steps 20000 -report_every 100"
             + " -use_interval true"
         )
         do_str += param4
