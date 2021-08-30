@@ -133,15 +133,16 @@ def get_generator(vocab_size, dec_hidden_size, device):
 
 
 class Bert(nn.Module):
-    def __init__(self, temp_dir, finetune=False):
+    def __init__(self, model_dir, finetune=False):
         super(Bert, self).__init__()
         # if(large):
         #     self.model = BertModel.from_pretrained('bert-large-uncased', cache_dir=temp_dir)
         # else:
 
         # self.model = BertModel.from_pretrained(cache_dir=temp_dir)
-        self.model = BertModel.from_pretrained('skt/kobert-base-v1', cache_dir=temp_dir)
+        # self.model = BertModel.from_pretrained('skt/kobert-base-v1', cache_dir=temp_dir)
 
+        self.model = BertModel.from_pretrained(model_dir, )
         self.finetune = finetune
 
     def forward(self, x, segs, mask):
@@ -165,7 +166,7 @@ class ExtSummarizer(nn.Module):
         super(ExtSummarizer, self).__init__()
         self.args = args
         self.device = device
-        self.bert = Bert(args.temp_dir, args.finetune_bert)
+        self.bert = Bert(args.model_dir, args.finetune_bert)
 
         self.ext_layer = ExtTransformerEncoder(
             self.bert.model.config.hidden_size,

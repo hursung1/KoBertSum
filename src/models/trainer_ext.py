@@ -180,7 +180,7 @@ class Trainer(object):
                             val_loss = self.validate(val_iter, valid_stats, step)
                             self.model.train()
                             if val_loss is not None:
-                                # print(val_loss)
+                                print(f"Validation Loss: {val_loss}")
                                 self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)   
 
                         step += 1
