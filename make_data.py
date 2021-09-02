@@ -16,7 +16,7 @@ from src.prepro.preprocessor_kr import korean_sent_spliter, preprocess_kr
 os.environ['MKL_THREADING_LAYER']='GNU'
 
 def jsonl_to_df(params):
-    from_dir = f"{os.getcwd()}/datasets/{params.dataset_name}"
+    from_dir = f"{os.getcwd()}/datasets/{params.dataset}"
     to_dir = f"{from_dir}/df"
     src_name, tgt_name, train_split, train_split_frac = (
         params.src_name,
@@ -104,10 +104,10 @@ def _jsonl_to_df(
 
 
 def df_to_bert(params):
-    from_dir = f"{os.getcwd()}/datasets/{params.dataset_name}/df"
-    temp_dir = f"{os.getcwd()}/datasets/{params.dataset_name}/json"
-    to_dir = f"{os.getcwd()}/datasets/{params.dataset_name}/bert"
-    log_file = f"{os.getcwd()}/datasets/{params.dataset_name}/data_prepro.log"
+    from_dir = f"{os.getcwd()}/datasets/{params.dataset}/df"
+    temp_dir = f"{os.getcwd()}/datasets/{params.dataset}/json"
+    to_dir = f"{os.getcwd()}/datasets/{params.dataset}/bert"
+    log_file = f"{os.getcwd()}/datasets/{params.dataset}/data_prepro.log"
     src_name, tgt_name, tgt_type, train_split_frac = (
         params.src_name,
         params.tgt_name,
@@ -254,7 +254,7 @@ def _get_subdata_group(path):
 def main() -> None:
     parser = argparse.ArgumentParser(description="몰루")
     ### options as input
-    parser.add_argument("--dataset_name", type=str, default="aihub", help="name of dataset")
+    parser.add_argument("--dataset", type=str, default="aihub", help="name of dataset")
     parser.add_argument("--train_file", type=str, default="train.jsonl", help="name of train dataset file")
     parser.add_argument("--valid_file", type=str, default="valid.jsonl", help="name of validation dataset file")
     parser.add_argument("--test_file", type=str, default="test.jsonl", help="name of test dataset file")
