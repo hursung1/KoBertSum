@@ -357,12 +357,23 @@ class Trainer(object):
                         # print(batch.tgt_str)
                         # print(pred)
                         for i in range(len(gold)):
-                            save_gold.write(gold[i].strip() + "\n")
+                            # save_gold.write(gold[i].strip() + "\n")
+                            sents = gold[i].split("<q>")
+                            for sent in sents:
+                                save_gold.write("<t>" + sent + "<\t>")
+                            
                         for i in range(len(pred)):
-                            save_pred.write(pred[i].strip() + str(pred_idx[i]) + "\n")
-        if step != -1 and self.args.report_rouge:
-            rouges = test_rouge(self.args.temp_dir, can_path, gold_path)
-            logger.info("Rouges at step %d \n%s" % (step, rouge_results_to_str(rouges)))
+                            # save_pred.write(pred[i].strip() + str(pred_idx[i]) + "\n")
+                            sents = pred[i].split("<q>")
+                            for sent in sents:
+                                save_pred.write("<t>" + sent + "<\t>")
+
+                        save_gold.write("\n")
+                        save_pred.write("\n")
+
+        # if step != -1 and self.args.report_rouge:
+        #     rouges = test_rouge(self.args.temp_dir, can_path, gold_path)
+        #     logger.info("Rouges at step %d \n%s" % (step, rouge_results_to_str(rouges)))
         self._report_step(0, step, valid_stats=stats)
 
         return stats
