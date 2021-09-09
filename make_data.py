@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import random
-from numpy import save
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 # from omegaconf import DictConfig
@@ -49,10 +49,8 @@ def jsonl_to_df(params):
 def _jsonl_to_df(
     jsonl_file_path, to_dir, src_name, tgt_name=None, train_split=True, train_split_frac=1.0
 ):
-    def save_df(df, to_dir):
-        from varname import argname
-
-        df_path = f"{to_dir}/{argname(df)}.pickle"
+    def save_df(df, df_name, to_dir):
+        df_path = f"{to_dir}/{df_name}.pickle"
         df.to_pickle(df_path)
         logger.info(f"Done! {df_path}({len(df)} rows) is exported")
 
@@ -66,12 +64,12 @@ def _jsonl_to_df(
         line = json.loads(json_str)
         jsons.append(line)
 
-    random.shuffle(jsons)
     # Convert jsonl to df
     df = pd.DataFrame(jsons)
 
     if subdata_group in ["train", "valid"]:
         df = df[[src_name, tgt_name]]
+        df = df.iloc[np.random.permutation(df.index)].reset_index(drop=True)
 
         if int(train_split_frac) != 1:  # train -> train / dev
             # random split
@@ -81,10 +79,10 @@ def _jsonl_to_df(
             valid_df = df.drop(train_df.index)
             if len(train_df) > 0:
                 train_df.reset_index(inplace=True, drop=True)
-                save_df(train_df, to_dir)
+                save_df(train_df, "train_df", to_dir)
             if len(valid_df) > 0:
                 valid_df.reset_index(inplace=True, drop=True)
-                save_df(valid_df, to_dir)
+                save_df(valid_df, "valid_df", to_dir)
             
         else:  # just save df as train.df or valid.df
             if train_split:
@@ -100,7 +98,7 @@ def _jsonl_to_df(
 
     else:  # test
         test_df = df[[src_name]]
-        save_df(test_df, to_dir)
+        save_df(test_df, "test_df", to_dir)
 
 
 def df_to_bert(params):
