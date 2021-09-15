@@ -1,10 +1,16 @@
 import json
+import argparse
 
-test_file_path = "datasets/aihub/test_500_1_신문기사.jsonl"
-gold_file_path = "ext/results/result_0830_1447_step_32500.gold"
+parser = argparse.ArgumentParser()
+parser.add_argument("-test_file_path", type=str, )
+parser.add_argument("-gold_file_path", type=str)
 
-with open(test_file_path, "r") as file:
-    with open(gold_file_path, "w") as gold_out:
+args = parser.parse_args()
+# test_file_path = "datasets/aihub/test_1500_from_val.jsonl"
+# gold_file_path = "ext/results/result_0906_1603_step_53500.gold"
+
+with open(args.test_file_path, "r") as file:
+    with open(args.gold_file_path, "w") as gold_out:
         for jsline in file:
             # print(type(jsline))
             data = json.loads(jsline)
