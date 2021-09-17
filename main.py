@@ -141,7 +141,7 @@ if __name__ == "__main__":
             f"""\
             python train.py -task ext -mode test \
             -test_from {MODEL_DIR}/{args.test_from} \
-            -bert_data_path {BERT_DATA_DIR} \
+            -bert_data_path {PROJECT_DIR}/datasets/{args.data_from}/bert \
             -result_path {RESULT_DIR}/result_{model_folder} \
             -log_file {LOG_DIR}/test_{model_folder}.log \
             -test_batch_size 1  -batch_size 3000 \
