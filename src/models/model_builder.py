@@ -158,7 +158,7 @@ class Bert(nn.Module):
                 output = self.model(x, token_type_ids=segs, attention_mask=mask)
 
         # return top_vec
-        return output.last_hidden_state
+        return output[0]
 
 
 class ExtSummarizer(nn.Module):
