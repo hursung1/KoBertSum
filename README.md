@@ -38,8 +38,6 @@ BertSum은 BERT 위에 inter-sentence Transformer 2-layers 를 얹은 구조를 
 
 - 매 sentence마다 다른 segment embeddings 토큰을 더해주는 interval segment embeddings을 추가합니다.
 
-  ![BERTSUM_structure](tutorials/images/BERTSUM_structure.PNG)
-
 
 ## Usage
 
@@ -98,7 +96,7 @@ BertSum은 BERT 위에 inter-sentence Transformer 2-layers 를 얹은 구조를 
     ```
 2. Fine-tuning
 
-    KoBERT 모델을 기반으로 fine-tuning을 진행하고, 1,000 step마다  Fine-tuned model 파일(`.pt`)을 저장합니다. 마찬가지로, validation 또한 1,000 step마다 수행합니다.
+    Huggingface를 통해 제공되는 KoBERT 계열 모델을 기반으로 fine-tuning을 진행하고, validation cross-entropy가 더 낮게 나오는 모델의 parameter를 파일로(`.pt`) 저장합니다. validation은 매 500 step마다 수행됩니다.
 
     - `target_summary_sent`: `abs` 또는 `ext` . 
     - `visible_gpus`: 연산에 이용할 gpu index를 입력. 
@@ -110,28 +108,30 @@ BertSum은 BERT 위에 inter-sentence Transformer 2-layers 를 얹은 구조를 
 
     결과는  `ext/models` 폴더 내 finetuning이 실행된 시간을 폴더명으로 가진 폴더에 저장됩니다. 
 
-3. Validation
+3. Inference & make submission file
 
-   Fine-tuned model마다 validation data set을 통해 inference를 시행하고, loss 값을 확인합니다.
-
-   - `model_path`:  model 파일(`.pt`)이 저장된 폴더 경로
-
-   ```
-   python main.py -mode valid -model_path 1209_1236
-   ```
-
-   결과는 `ext/logs` 폴더 내 `valid_1209_1236.log` 형태로 저장됩니다.
-
-4. Inference & make submission file
-
-    Validation을 통해 확인한 가장 성능이 우수한 model파일을 통해 실제로 텍스트 요약 과업을 수행합니다.
+    Validation을 통해 확인한 (cross-entropy 기준) 가장 성능이 우수한 model파일을 불러와 실제로 문서 요약 작업을 수행합니다.
 
     - `test_from`:  model 파일(`.pt`) 경로
     - `visible_gpus`: 연산에 이용할 gpu index를 입력. 
       예) (GPU 3개를 이용할 경우): `0,1,2`
 
     ```
-    python main.py -mode test -test_from 1209_1236/model_step_7000.pt -visible_gpus 0
+    python main.py -mode test -test_from 0909_1800/model_step_25000.pt -visible_gpus 0
     ```
 
-    결과는 `ext/data/results/` 폴더에 `result_1209_1236_step_7000.candidate`  및 `submission_날짜_시간.csv` 형태로 저장됩니다.
+    `ext/data/results/` 폴더에, model의 inference 결과는 `result_0909_1800_step_25000.candidate` 형태로, 정답 파일은 `result_0909_1800_step_25000.gold` 형태로 저장됩니다.
+    
+    
+### Calculate ROUGE Score
+
+1. 한국어 ROUGE package 설치
+
+    [이 링크](https://github.com/hong8e/KoROUGE)의 1번 항목을 따라 KoROUGE package를 설치합니다.
+
+2. ROUGE score 계산하기
+
+    Inference를 통해 생성된 ```.candidate``` 파일과 ```.gold``` 파일이 있는 ```ext/data/results/``` 폴더로 이동하여, ROUGE score를 계산합니다
+    ```
+    KoROUGE result_0909_1800_step_25000.candidate result_0909_1800_step_25000.gold
+    ```
