@@ -2,7 +2,7 @@ import copy
 
 import torch
 import torch.nn as nn
-from transformers import BertModel, BertConfig, AlbertModel
+from transformers import BertModel, BertConfig, DistilBertModel
 from transformers import ElectraModel
 from torch.nn.init import xavier_uniform_
 
@@ -135,27 +135,27 @@ def get_generator(vocab_size, dec_hidden_size, device):
 class Bert(nn.Module):
     def __init__(self, model_dir, finetune=False):
         super(Bert, self).__init__()
-        # if(large):
-        #     self.model = BertModel.from_pretrained('bert-large-uncased', cache_dir=temp_dir)
-        # else:
-
-        # self.model = BertModel.from_pretrained(cache_dir=temp_dir)
-        # self.model = BertModel.from_pretrained('skt/kobert-base-v1', cache_dir=temp_dir)
-
-        self.model = BertModel.from_pretrained(model_dir, )
+        if "distil" in model_dir:
+            self.model_mode = "distilbert"
+            self.model = DistilBertModel.from_pretrained(model_dir, )
+        else:
+            self.model_mode = "bert"
+            self.model = BertModel.from_pretrained(model_dir)
         self.finetune = finetune
 
     def forward(self, x, segs, mask):
         if self.finetune:
-            # top_vec, _ = self.model(x, token_type_ids=segs, attention_mask=mask)
-            output = self.model(x, token_type_ids=segs, attention_mask=mask)
-            # print(last_hiddens, last_pooling_hiddens, hiddens)
-            # top_vec = hiddens[-1]
+            if self.model_mode == "distilbert":
+                output = self.model(x, attention_mask=mask)
+            else:
+                output = self.model(x, token_type_ids=segs, attention_mask=mask)
         else:
             self.eval()
             with torch.no_grad():
-                # top_vec, _ = self.model(x, token_type_ids=segs, attention_mask=mask)
-                output = self.model(x, token_type_ids=segs, attention_mask=mask)
+                if self.model_mode == "distilbert":
+                    output = self.model(x, attention_mask=mask)
+                else:
+                    output = self.model(x, token_type_ids=segs, attention_mask=mask)
 
         # return top_vec
         return output[0]
