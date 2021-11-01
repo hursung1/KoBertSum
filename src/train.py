@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("-bert_data_path", default="../bert_data_new/cnndm")
     parser.add_argument("-model_path", default="../models/")
     parser.add_argument("-result_path", default="../results/cnndm")
-    parser.add_argument("-model_dir", default="skt/kobert-base-v1")
+    parser.add_argument("-use_model", default="skt/kobert-base-v1")
 
     parser.add_argument("-batch_size", default=140, type=int)
     parser.add_argument("-test_batch_size", default=200, type=int)
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("-report_every", default=1, type=int)
     parser.add_argument("-train_steps", default=1000, type=int)
     parser.add_argument("-valid_steps", default=500, type=int)
-    parser.add_argument("-stop_training", default=10, type=int)
+    parser.add_argument("-stop_training", default=5, type=int)
     parser.add_argument(
         "-recall_eval", type=str2bool, nargs="?", const=True, default=False
     )
@@ -133,6 +133,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-test_from", default="")
     parser.add_argument("-test_start_from", default=-1, type=int)
+    parser.add_argument("-make_gold", default="false", type=str)
 
     parser.add_argument("-train_from", default="")
     parser.add_argument(
@@ -151,47 +152,15 @@ if __name__ == "__main__":
     device = "cpu" if args.visible_gpus == "-1" else "cuda"
     device_id = 0 if device == "cuda" else -1
 
-    # if (args.task == 'abs'):
-    #     if (args.mode == 'train'):
-    #         train_abs(args, device_id)
-    #     elif (args.mode == 'validate'):
-    #         validate_abs(args, device_id)
-    #     elif (args.mode == 'lead'):
-    #         baseline(args, cal_lead=True)
-    #     elif (args.mode == 'oracle'):
-    #         baseline(args, cal_oracle=True)
-    #     if (args.mode == 'test'):
-    #         cp = args.test_from
-    #         try:
-    #             step = int(cp.split('.')[-2].split('_')[-1])
-    #         except:
-    #             step = 0
-    #         test_abs(args, device_id, cp, step)
-    #     elif (args.mode == 'test_text'):
-    #         cp = args.test_from
-    #         try:
-    #             step = int(cp.split('.')[-2].split('_')[-1])
-    #         except:
-    #             step = 0
-    #             test_text_abs(args, device_id, cp, step)
-
-    # elif (args.task == 'ext'):
     if args.task == "ext":
         if args.mode == "train":
             train_ext(args, device_id)
         elif args.mode == "validate":
             validate_ext(args, device_id)
-        if args.mode == "test":
+        elif args.mode == "test":
             cp = args.test_from
             try:
                 step = int(cp.split(".")[-2].split("_")[-1])
             except:
                 step = 0
             test_ext(args, device_id, cp, step)
-        elif args.mode == "test_text":
-            cp = args.test_from
-            try:
-                step = int(cp.split(".")[-2].split("_")[-1])
-            except:
-                step = 0
-                test_text_abs(args, device_id, cp, step)

@@ -16,7 +16,7 @@ from src.prepro.preprocessor_kr import korean_sent_spliter, preprocess_kr
 os.environ['MKL_THREADING_LAYER']='GNU'
 
 def jsonl_to_df(params):
-    from_dir = f"{os.getcwd()}/datasets/{params.dataset}"
+    from_dir = f"{os.getcwd()}/datasets"
     to_dir = f"{from_dir}/df"
     src_name, tgt_name, train_split, train_split_frac = (
         params.src_name,
@@ -91,21 +91,21 @@ def _jsonl_to_df(
             else:
                 if subdata_group == 'train':
                     train_df = df
-                    save_df(train_df, to_dir)
+                    save_df(train_df, "train_df", to_dir)
                 elif subdata_group == 'valid':
                     valid_df = df
-                    save_df(valid_df, to_dir)
+                    save_df(valid_df, "valid_df", to_dir)
 
     else:  # test
-        test_df = df[[src_name]]
+        test_df = df[[src_name, tgt_name]]
         save_df(test_df, "test_df", to_dir)
 
 
 def df_to_bert(params):
-    from_dir = f"{os.getcwd()}/datasets/{params.dataset}/df"
-    temp_dir = f"{os.getcwd()}/datasets/{params.dataset}/json"
-    to_dir = f"{os.getcwd()}/datasets/{params.dataset}/bert"
-    log_file = f"{os.getcwd()}/datasets/{params.dataset}/data_prepro.log"
+    from_dir = f"{os.getcwd()}/datasets/df"
+    temp_dir = f"{os.getcwd()}/datasets/json"
+    to_dir = f"{os.getcwd()}/datasets/bert"
+    log_file = f"{os.getcwd()}/datasets/data_prepro.log"
     src_name, tgt_name, tgt_type, train_split_frac = (
         params.src_name,
         params.tgt_name,
@@ -148,26 +148,25 @@ def df_to_bert(params):
         df = pd.read_pickle(df_file)
         # print(df)
         subdata_group = _get_subdata_group(df_file)
+        _df_to_bert(df, subdata_group)
 
-        if (
-            subdata_group == "train" and int(train_split_frac) != 1
-        ):  # train -> train / dev
-            # random split
-            train_df = df.sample(
-                frac=train_split_frac, random_state=42
-            )  # random state is a seed value
+        # if (
+        #     subdata_group == "train" and int(train_split_frac) != 1
+        # ):  # train -> train / dev
+        #     # random split
+        #     train_df = df.sample(frac=train_split_frac)  # random state is a seed value
 
-            train_df = train_df[:5000]  ## 임시!!
+        #     # train_df = train_df[:5000]  ## 임시!!
+        #     valid_df = df.drop(train_df.index)
+        #     # valid_df = df.drop(train_df.index)[:500]
+        #     train_df.reset_index(inplace=True, drop=True)
+        #     valid_df.reset_index(inplace=True, drop=True)
 
-            valid_df = df.drop(train_df.index)[:500]
-            train_df.reset_index(inplace=True, drop=True)
-            valid_df.reset_index(inplace=True, drop=True)
+        #     _df_to_bert(train_df, subdata_group="train")
+        #     _df_to_bert(valid_df, subdata_group="valid")
 
-            _df_to_bert(train_df, subdata_group="train")
-            _df_to_bert(valid_df, subdata_group="valid")
-
-        else:
-            _df_to_bert(df, subdata_group)
+        # else:
+        #     _df_to_bert(df, subdata_group)
 
 
 def _df_to_json(df, src_name, tgt_name, tgt_type, to_dir, subdata_group):
@@ -196,7 +195,7 @@ def _df_to_json(df, src_name, tgt_name, tgt_type, to_dir, subdata_group):
             original_sents_list = [preprocess_kr(sent).split() for sent in src_sents]
 
             summary_sents_list = []
-            if subdata_group in ["train", "valid"]:
+            if subdata_group in ["train", "valid", "test"]:
                 if tgt_type == "idx_list":
                     summary_sents_list = row[tgt_name]
                 else:
@@ -209,7 +208,7 @@ def _df_to_json(df, src_name, tgt_name, tgt_type, to_dir, subdata_group):
                     summary_sents_list = [
                         preprocess_kr(sent).split() for sent in tgt_sents
                     ]
-                # print("aaa", tgt_name, summary_sents_list)
+                    
             json_list.append({"src": original_sents_list, "tgt": summary_sents_list})
 
         json_string = json.dumps(json_list, indent=4, ensure_ascii=False)
@@ -248,9 +247,8 @@ def _get_subdata_group(path):
             return type
 
 
-# @ hydra.main(config_path='conf/make_data', config_name='config')
 def main() -> None:
-    parser = argparse.ArgumentParser(description="몰루")
+    parser = argparse.ArgumentParser(description="")
     ### options as input
     parser.add_argument("--dataset", type=str, default="aihub", help="name of dataset")
     parser.add_argument("--train_file", type=str, default="train.jsonl", help="name of train dataset file")

@@ -135,6 +135,7 @@ def get_generator(vocab_size, dec_hidden_size, device):
 class Bert(nn.Module):
     def __init__(self, model_dir, finetune=False):
         super(Bert, self).__init__()
+        # print("======model_dir is: ", model_dir, "==========")
         if "distil" in model_dir:
             self.model_mode = "distilbert"
             self.model = DistilBertModel.from_pretrained(model_dir, )
@@ -166,7 +167,7 @@ class ExtSummarizer(nn.Module):
         super(ExtSummarizer, self).__init__()
         self.args = args
         self.device = device
-        self.bert = Bert(args.model_dir, args.finetune_bert)
+        self.bert = Bert(args.use_model, args.finetune_bert)
 
         self.ext_layer = ExtTransformerEncoder(
             self.bert.model.config.hidden_size,

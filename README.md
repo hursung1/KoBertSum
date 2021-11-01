@@ -54,11 +54,11 @@ BertSum은 BERT 위에 inter-sentence Transformer 2-layers 를 얹은 구조를 
     ```
 
 2. 데이터 추가하기
-   - `jsonl` 데이터일 경우, `datasets/DATASET_NAME` 폴더에 넣어줍니다.
-   - `.pickle`로 저장한 dataframe 데이터일 경우, `datasets/DATASET_NAME/df` 폴더에 넣어줍니다.
+   - `jsonl` 데이터일 경우, `datasets/` 폴더에 넣어줍니다.
+   - `.pickle`로 저장한 dataframe 데이터일 경우, `datasets/df` 폴더에 넣어줍니다.
   
 3. 다음 명령어를 실행하여 데이터를 BertSum 모델에 입력 가능한 `.pt` 파일로 변환합니다.   
-변환 데이터는 `datasets/DATASET_NAME/bert`에 저장됩니다.
+변환 데이터는 `datasets/bert`에 저장됩니다.
    - 공통사항
      - `dataset`: 데이터셋 이름 (위 2번 단계에서 만들어준 DATASET_NAME과 동일해야 함)
      - `src_name`: 데이터에서 본문에 해당하는 key값(jsonl) 또는 colname(df)

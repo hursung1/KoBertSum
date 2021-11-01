@@ -145,7 +145,7 @@ class Trainer(object):
         valid_stats = Statistics() # total validation stats
         self._start_report_manager(start_time=total_stats.start_time)
 
-        while (stop_training_cnt < self.stop_training) or (step <= train_steps):
+        while stop_training_cnt < self.stop_training:
             self.model.train()
             train_iter = train_iter_fct()
             val_iter = valid_iter_fct()
@@ -176,12 +176,13 @@ class Trainer(object):
                         if (
                             step % self.valid_steps == 0
                             and self.gpu_rank == 0
-                        ): # validation for each {$self.save_checkpoint_steps}
+                        ): # validation for each self.save_checkpoint_steps
                             val_loss = self.validate(val_iter, valid_stats, step)
                             self.model.train()
                             if val_loss is not None:
                                 print(f"Validation Loss: {val_loss}")
-                                self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)   
+                                self._entry_topk(best_topk_models, val_loss, step, k, stop_training_cnt)
+                                print(best_topk_models)
 
                         step += 1
 
@@ -249,131 +250,126 @@ class Trainer(object):
         stats = Statistics()
 
         can_path = f"{self.args.result_path}_step_{step}.candidate"
-        gold_path = f"{self.args.result_path}_step_{step}.gold"
+ 
         with open(can_path, "w") as save_pred:
-            with open(gold_path, "w") as save_gold:
-                with torch.no_grad():
-                    for batch in test_iter:
-                        src = batch.src
-                        labels = batch.src_sent_labels
-                        segs = batch.segs
-                        clss = batch.clss
-                        mask = batch.mask_src
-                        mask_cls = batch.mask_cls
+            with torch.no_grad():
+                for batch in test_iter:
+                    # import pdb; pdb.set_trace()
+                    src = batch.src
+                    labels = batch.src_sent_labels
+                    segs = batch.segs
+                    clss = batch.clss
+                    mask = batch.mask_src
+                    mask_cls = batch.mask_cls
 
-                        gold = []
-                        pred = []
-                        pred_idx = []
+                    gold = []
+                    pred = []
+                    pred_idx = []
 
-                        if cal_lead:
-                            selected_ids = [
-                                list(range(batch.clss.size(1)))
-                            ] * batch.batch_size
-                        elif cal_oracle:
-                            selected_ids = [
-                                [
-                                    j
-                                    for j in range(batch.clss.size(1))
-                                    if labels[i][j] == 1
-                                ]
-                                for i in range(batch.batch_size)
+                    if cal_lead:
+                        selected_ids = [
+                            list(range(batch.clss.size(1)))
+                        ] * batch.batch_size
+                    elif cal_oracle:
+                        selected_ids = [
+                            [
+                                j
+                                for j in range(batch.clss.size(1))
+                                if labels[i][j] == 1
                             ]
-                        else:
-                            sent_scores, mask = self.model(
-                                src, segs, clss, mask, mask_cls
-                            )
+                            for i in range(batch.batch_size)
+                        ]
+                    else:
+                        sent_scores, mask = self.model(
+                            src, segs, clss, mask, mask_cls
+                        )
 
-                            loss = self.loss(sent_scores, labels.float())
-                            loss = (loss * mask.float()).sum()
-                            batch_stats = Statistics(
-                                float(loss.cpu().data.numpy()), len(labels)
-                            )
-                            stats.update(batch_stats)
+                        loss = self.loss(sent_scores, labels.float())
+                        loss = (loss * mask.float()).sum()
+                        batch_stats = Statistics(
+                            float(loss.cpu().data.numpy()), len(labels)
+                        )
+                        stats.update(batch_stats)
 
-                            sent_scores = sent_scores + mask.float()
-                            sent_scores = sent_scores.cpu().data.numpy()
-                            # print(sent_scores)
-                            selected_ids = np.argsort(-sent_scores, 1)
-                            # print(selected_ids)
-                        # selected_ids = np.sort(selected_ids,1)
-                        for i, idx in enumerate(selected_ids):
-                            _pred = []
-                            _pred_idx = []
-                            if len(batch.src_str[i]) == 0:
+                        sent_scores = sent_scores + mask.float()
+                        sent_scores = sent_scores.cpu().data.numpy()
+                        # print(sent_scores)
+                        selected_ids = np.argsort(-sent_scores, 1)
+                        # print(selected_ids)
+                    # selected_ids = np.sort(selected_ids,1)
+                    for i in range(len(selected_ids)):
+                        _pred = []
+                        _pred_idx = []
+                        if len(batch.src_str[i]) == 0:
+                            continue
+                        for j in selected_ids[i][: len(batch.src_str[i])]:
+                            if j >= len(batch.src_str[i]):
                                 continue
-                            for j in selected_ids[i][: len(batch.src_str[i])]:
-                                if j >= len(batch.src_str[i]):
-                                    continue
-                                candidate = batch.src_str[i][j].strip()
-                                if self.args.block_trigram:
-                                    if not _block_tri(candidate, _pred):
-                                        _pred.append(candidate)
-                                        _pred_idx.append(j)
-                                else:
+                            candidate = batch.src_str[i][j].strip()
+                            if self.args.block_trigram:
+                                if not _block_tri(candidate, _pred):
                                     _pred.append(candidate)
                                     _pred_idx.append(j)
+                            else:
+                                _pred.append(candidate)
+                                _pred_idx.append(j)
 
-                                if (
-                                    (not cal_oracle)
-                                    and (not self.args.recall_eval)
-                                    and len(_pred) == 3
-                                ):
-                                    break
+                            if (
+                                (not cal_oracle)
+                                and (not self.args.recall_eval)
+                                and len(_pred) == 3
+                            ):
+                                break
 
-                            # 아마도 한단어로 구성된 sent는 json -> bert 데이터 만들떄 빠지게 되어있는것 같음
-                            # min_src_ntokens_per_sent 의 값을 조정하면 될 것 같았는데... 안먹힘.
-                            # 그래서 실제로는 3문장 이상의 src지만 여기 selected_ids[i]에는 포함 안됨
-                            # 그래서 임의로 앞에 index를 더해줬는데, 이때는 문장이 아이 빠져버려서 실제 index와 여기 index 값이 달라버려서.... 결국 틀리게됨 수정 필요!!!!
-                            if len(_pred_idx) < 3:
+                        # 아마도 한단어로 구성된 sent는 json -> bert 데이터 만들떄 빠지게 되어있는것 같음
+                        # min_src_ntokens_per_sent 의 값을 조정하면 될 것 같았는데... 안먹힘.
+                        # 그래서 실제로는 3문장 이상의 src지만 여기 selected_ids[i]에는 포함 안됨
+                        # 그래서 임의로 앞에 index를 더해줬는데, 이때는 문장이 아이 빠져버려서 실제 index와 여기 index 값이 달라버려서.... 결국 틀리게됨 수정 필요!!!!
+                        if len(_pred_idx) < 3:
+                            # print(_pred_idx)
+                            # print('selected_ids: ', selected_ids)
+                            # print('batch.src_str[i]: ', batch.src_str[i])
+                            # print(f'selected_ids[{i}]: ', selected_ids[i])
+                            if len(selected_ids[i]) >= 3:
+                                # 이것도 살려줘야함. 결과에는 관계없지만...!!!
+                                # _pred = np.array(batch.src_str[i])[
+                                #     selected_ids[i][:3]
+                                # ]
+                                _pred_idx = list(selected_ids[i][:3])
                                 # print(_pred_idx)
-                                # print('selected_ids: ', selected_ids)
-                                # print('batch.src_str[i]: ', batch.src_str[i])
-                                # print(f'selected_ids[{i}]: ', selected_ids[i])
-                                if len(selected_ids[i]) >= 3:
-                                    # 이것도 살려줘야함. 결과에는 관계없지만...!!!
-                                    # _pred = np.array(batch.src_str[i])[
-                                    #     selected_ids[i][:3]
-                                    # ]
-                                    _pred_idx = list(selected_ids[i][:3])
-                                    # print(_pred_idx)
 
-                                else:
-                                    print(batch.src_str[i])
-                                    for naive_idx in range(3):
-                                        if naive_idx not in _pred_idx:
-                                            _pred_idx.append(naive_idx)
-                                    _pred_idx = _pred_idx[:3]
+                            else:
+                                print(batch.src_str[i])
+                                for naive_idx in range(3):
+                                    if naive_idx not in _pred_idx:
+                                        _pred_idx.append(naive_idx)
+                                _pred_idx = _pred_idx[:3]
 
-                            # print("labels", labels[i])  이 값이 0인건... test라 라벨이 없어서?!!!!
-                            _pred = "<q>".join(_pred)
-                            if self.args.recall_eval:
-                                _pred = " ".join(
-                                    _pred.split()[: len(batch.tgt_str[i].split())]
-                                )
+                        # print("labels", labels[i])  이 값이 0인건... test라 라벨이 없어서?!!!!
+                        _pred = "<q>".join(_pred)
+                        if self.args.recall_eval:
+                            _pred = " ".join(
+                                _pred.split()[: len(batch.tgt_str[i].split())]
+                            )
 
-                            pred.append(_pred)
-                            pred_idx.append(_pred_idx)
-                            gold.append(batch.tgt_str[i])
-                        # print(batch.tgt_str)
-                        # print(pred)
-                        for i in range(len(gold)):
-                            # save_gold.write(gold[i].strip() + "\n")
-                            sents = gold[i].split("<q>")
-                            for sent in sents:
-                                save_gold.write("<t>" + sent + "<\t>")
-                            
-                        for i in range(len(pred)):
-                            # save_pred.write(pred[i].strip() + str(pred_idx[i]) + "\n")
-                            sents = pred[i].split("<q>")
-                            for sent in sents:
-                                save_pred.write("<t>" + sent + "<\t>")
+                        pred.append(_pred)
+                        pred_idx.append(_pred_idx)
+                        # gold.append(batch.tgt_str[i])
+                        
+                    # for i in range(len(gold)):
+                    #     sents = gold[i].split("<q>")
+                    #     for sent in sents:
+                    #         save_gold.write("<t>" + sent + "<\t>")
+                        
+                    for i in range(len(pred)):
+                        # save_pred.write(pred[i].strip() + str(pred_idx[i]) + "\n")
+                        sents = pred[i].split("<q>")
+                        for sent in sents:
+                            save_pred.write("<t>" + sent + "<\t>")
 
-                        save_gold.write("\n")
-                        save_pred.write("\n")
+                    # save_gold.write("\n")
+                    save_pred.write("\n")
 
-        # if step != -1 and self.args.report_rouge:
-        #     rouges = test_rouge(self.args.temp_dir, can_path, gold_path)
-        #     logger.info("Rouges at step %d \n%s" % (step, rouge_results_to_str(rouges)))
         self._report_step(0, step, valid_stats=stats)
 
         return stats
@@ -470,9 +466,8 @@ class Trainer(object):
         val_loss: 현재 step에서의 validation loss
         step: 현재 step
         k: topk_model에 저장될 entry의 수
-        stop_training_cnt: 
+        stop_training_cnt: counter, self.stop_training과 같아지는 순간 학습을 종료한다.
         """
-        # assert topk_models is list
         del_step = None
         if len(topk_models) < k:
             topk_models.append((step, val_loss))
