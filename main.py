@@ -23,20 +23,20 @@ RESULT_DIR = f"{PROJECT_DIR}/{PROBLEM}/results"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-task", default="ext", type=str, choices=["ext", "abs"])
+    parser.add_argument("--task", default="ext", type=str, choices=["ext", "abs"])
     parser.add_argument(
-        "-mode",
+        "--mode",
         default="test",
         type=str,
         choices=["install", "make_data", "train", "valid", "test"],
     )
 
-    parser.add_argument("-n_cpus", default="2", type=str)
-    parser.add_argument("-visible_gpus", default="0", type=str)
-    parser.add_argument("-train_from", default=None, type=str)
-    parser.add_argument("-use_model", default="kobert", type=str)
-    parser.add_argument("-test_from", default=None, type=str)
-    parser.add_argument("-make_gold", default="false", type=str)
+    parser.add_argument("--n_cpus", default="2", type=str)
+    parser.add_argument("--visible_gpus", default="0", type=str)
+    parser.add_argument("--train_from", default=None, type=str)
+    parser.add_argument("--use_model", default="kobert", type=str)
+    parser.add_argument("--test_from", default=None, type=str)
+    parser.add_argument("--make_gold", default="false", type=str)
     args = parser.parse_args()
 
     now = time.strftime('%m%d_%H%M')
